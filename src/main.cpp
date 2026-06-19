@@ -16,13 +16,23 @@ int main() {
   Texture2D play_btn {LoadTexture("assets/textures/buttons/play.png")};
 
   bool inGame {false};
+  float x = (GetScreenWidth() / 2) - (bird.width / 2);
+  float y = (GetScreenHeight() / 2) - (bird.height / 2);
 
   while (!WindowShouldClose()) {
+
     BeginDrawing();
     ClearBackground(BLACK);
     DrawTexturePro(bg_img,  // background image
       (Rectangle) {0, 0, (float)bg_img.width, (float)bg_img.height},
       (Rectangle) {0, 0, (float)GetScreenWidth(), (float)GetScreenHeight()},
+      (Vector2) {0, 0},
+      0.0f, WHITE
+    );
+
+    DrawTexturePro(bird, // bird character or the menu mascot
+      (Rectangle) {0, 0, (float)bird.width, (float)bird.height},
+      (Rectangle) {x, y, (float)bird.width, (float)bird.height},
       (Vector2) {0, 0},
       0.0f,
       WHITE
@@ -37,22 +47,43 @@ int main() {
         WHITE
       );
 
-      DrawTexturePro(bird, // bird character or the menu mascot
-        (Rectangle) {0, 0, (float)bird.width, (float)bird.height},
-        (Rectangle) {(float)(GetScreenWidth() / 2) - (bird.width / 2) + 20, (float)(GetScreenHeight() / 2) - (bird.height / 2), (float)bird.width, (float)bird.height},
-        (Vector2) {0, 0},
-        20.0f,
-        WHITE
-      );
+
+      float x = (GetScreenWidth() / 2) - (play_btn.width / 2); 
+      float y = GetScreenHeight() - (play_btn.height * 2);
+
+      // interactions with the mouse
+      Rectangle bounds = {x, y, (float)play_btn.width, (float)play_btn.height};
+      bool hover = CheckCollisionPointRec(GetMousePosition(), bounds);
+      bool clicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 
       DrawTexturePro(play_btn, // Play button
         (Rectangle) {0, 0, (float)play_btn.width, (float)play_btn.height},
-        (Rectangle) {(float)(GetScreenWidth() / 2) - (play_btn.width / 2), (float)GetScreenHeight() - (play_btn.height * 2), (float)play_btn.width, (float)play_btn.height},
+        (Rectangle) {(float)x, (float)y, (float)play_btn.width, (float)play_btn.height},
         (Vector2) {0, 0},
         0.0f,
-        WHITE
+        (hover ? GREEN : (IsKeyPressed(KEY_SPACE) ? GREEN : WHITE))
       );
+
+      if (clicked) inGame = true;
+      else if (IsKeyPressed(KEY_SPACE)) inGame = true;
+
     } else { // when playing or inGame is true
+      float velocity {0};
+      const float GRAVITY {1.5};
+      const float FLY_UP {-40.0};
+
+      if (IsKeyPressed(KEY_SPACE)) {
+        velocity = FLY_UP;
+      }
+
+      velocity += GRAVITY;
+      y += velocity;
+      
+      if (y > GetScreenHeight() - bird.height) {
+        y = GetScreenHeight() - bird.height;
+      } else if (y <= 0) {
+        y = 0;
+      }
     }
 
     EndDrawing();
