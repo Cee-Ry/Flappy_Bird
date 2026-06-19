@@ -18,7 +18,11 @@ int main() {
   bool inGame {false};
   float x = (GetScreenWidth() / 2) - (bird.width / 2);
   float y = (GetScreenHeight() / 2) - (bird.height / 2);
+  float velocity {0};
+  const float GRAVITY {1.0};
+  const float FLY_UP {-15.0};
 
+  // Start of the whole game
   while (!WindowShouldClose()) {
 
     BeginDrawing();
@@ -30,11 +34,14 @@ int main() {
       0.0f, WHITE
     );
 
+    float rotation = (velocity / 30.0f) * 90.0f; // Scale velocity to rotation (max 90 degrees)
+    rotation = (rotation > 90.0f) ? 90.0f : (rotation < -90.0f) ? -90.0f : rotation; // Clamp rotation
+
     DrawTexturePro(bird, // bird character or the menu mascot
       (Rectangle) {0, 0, (float)bird.width, (float)bird.height},
       (Rectangle) {x, y, (float)bird.width, (float)bird.height},
-      (Vector2) {0, 0},
-      0.0f,
+      (Vector2) {(float)bird.width / 2, (float)bird.height / 2}, // Rotate around center
+      rotation,
       WHITE
     );
 
@@ -64,16 +71,11 @@ int main() {
         (hover ? GREEN : (IsKeyPressed(KEY_SPACE) ? GREEN : WHITE))
       );
 
-      if (clicked) inGame = true;
-      else if (IsKeyPressed(KEY_SPACE)) inGame = true;
-
+      if (clicked || IsKeyPressed(KEY_SPACE)) inGame = true; 
     } else { // when playing or inGame is true
-      float velocity {0};
-      const float GRAVITY {1.5};
-      const float FLY_UP {-40.0};
-
       if (IsKeyPressed(KEY_SPACE)) {
         velocity = FLY_UP;
+      } else {
       }
 
       velocity += GRAVITY;
