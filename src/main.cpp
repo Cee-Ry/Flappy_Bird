@@ -45,7 +45,7 @@ int main() {
         WHITE
       );
 
-      DrawTexturePro(play_btn, // bird character or the menu mascot
+      DrawTexturePro(play_btn, // Play button
         (Rectangle) {0, 0, (float)play_btn.width, (float)play_btn.height},
         (Rectangle) {(float)(GetScreenWidth() / 2) - (play_btn.width / 2), (float)GetScreenHeight() - (play_btn.height * 2), (float)play_btn.width, (float)play_btn.height},
         (Vector2) {0, 0},
@@ -58,6 +58,7 @@ int main() {
     EndDrawing();
   }
 
+  UnloadTexture(play_btn);
   UnloadTexture(bird);
   UnloadTexture(title);
   UnloadTexture(bg_img);
