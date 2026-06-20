@@ -23,11 +23,12 @@ int main() {
   const float GRAVITY {1.0};
   const float FLY_UP {-13.0};
 
-  // (Rectangle) {(float) GetScreenWidth() - pipe.width, (float)(GetScreenHeight()) - pipe.height, (float)pipe.width, (float)pipe.height},
   // Pipe's position
   float pipe_X {GetScreenWidth() - (pipe.width / 2)};
   float pipe_Y {GetScreenHeight() - pipe.width};
 
+  int score {0}; // score record
+                 
   // Start of the whole game
   while (!WindowShouldClose()) {
 
@@ -80,8 +81,10 @@ int main() {
       if (clicked || IsKeyPressed(KEY_SPACE)) inGame = true; 
 
     } else { // when playing or inGame is true
+      
+      DrawText(TextFormat("Score: %i", score), 10, 10 , 20, BLACK);
+      
       if (x != 200) x -= GRAVITY * 3;
-
       if (IsKeyPressed(KEY_SPACE)) velocity = FLY_UP;
 
       velocity += GRAVITY;
@@ -92,6 +95,8 @@ int main() {
       } else if (y <= 0) {
         y = 0;
       }
+
+      if (x == pipe_X + pipe.width) ++score;
       
       pipe_X -= 2.0;
 
