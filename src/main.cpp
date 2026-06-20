@@ -14,13 +14,19 @@ int main() {
   Texture2D title {LoadTexture("assets/textures/title/title_board.png")};
   Texture2D bird {LoadTexture("assets/textures/player/bird.png")};
   Texture2D play_btn {LoadTexture("assets/textures/buttons/play.png")};
+  Texture2D pipe {LoadTexture("assets/textures/obstacle/pipe.png")};
 
   bool inGame {false};
   float x = (GetScreenWidth() / 2) - (bird.width / 2);
   float y = (GetScreenHeight() / 2) - (bird.height / 2);
   float velocity {0};
   const float GRAVITY {1.0};
-  const float FLY_UP {-15.0};
+  const float FLY_UP {-13.0};
+
+  // (Rectangle) {(float) GetScreenWidth() - pipe.width, (float)(GetScreenHeight()) - pipe.height, (float)pipe.width, (float)pipe.height},
+  // Pipe's position
+  float pipe_X {GetScreenWidth() - (pipe.width / 2)};
+  float pipe_Y {GetScreenHeight() - pipe.width};
 
   // Start of the whole game
   while (!WindowShouldClose()) {
@@ -72,11 +78,11 @@ int main() {
       );
 
       if (clicked || IsKeyPressed(KEY_SPACE)) inGame = true; 
+
     } else { // when playing or inGame is true
-      if (IsKeyPressed(KEY_SPACE)) {
-        velocity = FLY_UP;
-      } else {
-      }
+      if (x != 200) x -= GRAVITY * 3;
+
+      if (IsKeyPressed(KEY_SPACE)) velocity = FLY_UP;
 
       velocity += GRAVITY;
       y += velocity;
@@ -86,11 +92,30 @@ int main() {
       } else if (y <= 0) {
         y = 0;
       }
+      
+      pipe_X -= 2.0;
+
+      DrawTexturePro(pipe,
+        (Rectangle) {0, 0, (float)pipe.width, (float)pipe.height},
+        (Rectangle) {pipe_X, (float)(GetScreenHeight()) - pipe.height, (float)pipe.width, (float)pipe.height},
+        (Vector2) {0, 0},
+        0.0f,
+        WHITE
+      );
+
+      DrawTexturePro(pipe,
+        (Rectangle) {0, 0, (float)pipe.width, (float)pipe.height},
+        (Rectangle) {pipe_X + pipe.width, (float)(GetScreenHeight()) - (pipe.height + 150), (float)pipe.width, (float)pipe.height},
+        (Vector2) {0, 0},
+        180.0f,
+        WHITE
+      );
     }
 
     EndDrawing();
   }
 
+  UnloadTexture(pipe);
   UnloadTexture(play_btn);
   UnloadTexture(bird);
   UnloadTexture(title);
