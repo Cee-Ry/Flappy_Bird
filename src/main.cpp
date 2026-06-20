@@ -1,14 +1,17 @@
+#include <ctime>
 #include <raylib.h>
 
 int main() {
-  // my phone total pixel size (infinix)
+  // Source screen size and resize factor for a smaller desktop window.
   const int MAX_WIDTH {1600};
   const int MAX_HEIGHT {720};
-  const float RESIZE {0.30}; // reducing window size by 30% percent, to fit it in my 1366x768 monitor
+  const float RESIZE {0.30f};
+  const int screenWidth {MAX_WIDTH - (int)(MAX_WIDTH * RESIZE)};
+  const int screenHeight {MAX_HEIGHT - (int)(MAX_HEIGHT * RESIZE)};
 
-  InitWindow(MAX_WIDTH - (MAX_WIDTH * RESIZE), MAX_HEIGHT - (MAX_HEIGHT * RESIZE), "Flappy Bird");
-  SetTargetFPS(40);
-  SetExitKey(KEY_NULL); 
+  InitWindow(screenWidth, screenHeight, "Flappy Bird");
+  SetTargetFPS(60);
+  SetExitKey(KEY_NULL);
 
   Texture2D bg_img {LoadTexture("assets/textures/backgrounds/bg.png")};
   Texture2D title {LoadTexture("assets/textures/title/title_board.png")};
@@ -16,105 +19,167 @@ int main() {
   Texture2D play_btn {LoadTexture("assets/textures/buttons/play.png")};
   Texture2D pipe {LoadTexture("assets/textures/obstacle/pipe.png")};
 
-  bool inGame {false};
-  float x = (GetScreenWidth() / 2) - (bird.width / 2);
-  float y = (GetScreenHeight() / 2) - (bird.height / 2);
-  float velocity {0};
-  const float GRAVITY {1.0};
-  const float FLY_UP {-13.0};
+  enum GamePhase { MENU, PLAYING, GAME_OVER };
+  GamePhase phase {MENU};
 
-  // Pipe's position
-  float pipe_X {GetScreenWidth() - (pipe.width / 2)};
-  float pipe_Y {GetScreenHeight() - pipe.width};
+  const float birdX {screenWidth * 0.25f};
+  float birdY {(screenHeight * 0.5f) - (bird.height * 0.5f)};
+  float velocity {0.0f};
 
-  int score {0}; // score record
-                 
-  // Start of the whole game
+  const float GRAVITY {0.5f};
+  const float FLY_UP {-10.0f};
+  const float PIPE_SPEED {3.0f};
+  const float PIPE_GAP {180.0f};
+  const int GAP_MIN {80};
+  const int GAP_MAX {screenHeight - 80 - (int)PIPE_GAP};
+
+  float pipeX {(float)screenWidth};
+  float pipeGapY {(float)GetRandomValue(GAP_MIN, GAP_MAX)};
+  bool pipePassed {false};
+
+  int score {0};
+  int bestScore {0};
+
+  SetRandomSeed((unsigned int)time(NULL));
+
+  auto resetGame = [&]() {
+    birdY = (screenHeight * 0.5f) - (bird.height * 0.5f);
+    velocity = 0.0f;
+    pipeX = (float)screenWidth;
+    pipeGapY = (float)GetRandomValue(GAP_MIN, GAP_MAX);
+    score = 0;
+    pipePassed = false;
+  };
+
   while (!WindowShouldClose()) {
+    bool hasFlapped = IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 
-    BeginDrawing();
-    ClearBackground(BLACK);
-    DrawTexturePro(bg_img,  // background image
-      (Rectangle) {0, 0, (float)bg_img.width, (float)bg_img.height},
-      (Rectangle) {0, 0, (float)GetScreenWidth(), (float)GetScreenHeight()},
-      (Vector2) {0, 0},
-      0.0f, WHITE
-    );
-
-    float rotation = (velocity / 30.0f) * 90.0f; // Scale velocity to rotation (max 90 degrees)
-    rotation = (rotation > 90.0f) ? 90.0f : (rotation < -90.0f) ? -90.0f : rotation; // Clamp rotation
-
-    DrawTexturePro(bird, // bird character or the menu mascot
-      (Rectangle) {0, 0, (float)bird.width, (float)bird.height},
-      (Rectangle) {x, y, (float)bird.width, (float)bird.height},
-      (Vector2) {(float)bird.width / 2, (float)bird.height / 2}, // Rotate around center
-      rotation,
-      WHITE
-    );
-
-    if (!inGame) { // Display Flappy bird home screen
-      DrawTexturePro(title, // title with board
-        (Rectangle) {0, 0, (float)title.width, (float)title.height},
-        (Rectangle) {(float)(GetScreenWidth() / 2) - (title.width / 2), 0, (float)title.width, (float)title.height},
-        (Vector2) {0, 0},
-        0.0f,
-        WHITE
-      );
-
-
-      float x = (GetScreenWidth() / 2) - (play_btn.width / 2); 
-      float y = GetScreenHeight() - (play_btn.height * 2);
-
-      // interactions with the mouse
-      Rectangle bounds = {x, y, (float)play_btn.width, (float)play_btn.height};
-      bool hover = CheckCollisionPointRec(GetMousePosition(), bounds);
-      bool clicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-
-      DrawTexturePro(play_btn, // Play button
-        (Rectangle) {0, 0, (float)play_btn.width, (float)play_btn.height},
-        (Rectangle) {(float)x, (float)y, (float)play_btn.width, (float)play_btn.height},
-        (Vector2) {0, 0},
-        0.0f,
-        (hover ? GREEN : (IsKeyPressed(KEY_SPACE) ? GREEN : WHITE))
-      );
-
-      if (clicked || IsKeyPressed(KEY_SPACE)) inGame = true; 
-
-    } else { // when playing or inGame is true
-      
-      DrawText(TextFormat("Score: %i", score), 10, 10 , 20, BLACK);
-      
-      if (x != 200) x -= GRAVITY * 3;
-      if (IsKeyPressed(KEY_SPACE)) velocity = FLY_UP;
-
+    if (phase == PLAYING) {
+      // Bird physics and controls.
+      if (hasFlapped) {
+        velocity = FLY_UP;
+      }
       velocity += GRAVITY;
-      y += velocity;
-      
-      if (y > GetScreenHeight() - bird.height) {
-        y = GetScreenHeight() - bird.height;
-      } else if (y <= 0) {
-        y = 0;
+      birdY += velocity;
+
+      // Pipe movement and recycling.
+      pipeX -= PIPE_SPEED;
+      if (pipeX + pipe.width < 0) {
+        pipeX = (float)screenWidth;
+        pipeGapY = (float)GetRandomValue(GAP_MIN, GAP_MAX);
+        pipePassed = false;
       }
 
-      if (x == pipe_X + pipe.width) ++score;
-      
-      pipe_X -= 2.0;
+      // Score once when the bird passes the pipe.
+      if (!pipePassed && pipeX + pipe.width < birdX) {
+        score += 1;
+        pipePassed = true;
+      }
 
-      DrawTexturePro(pipe,
-        (Rectangle) {0, 0, (float)pipe.width, (float)pipe.height},
-        (Rectangle) {pipe_X, (float)(GetScreenHeight()) - pipe.height, (float)pipe.width, (float)pipe.height},
-        (Vector2) {0, 0},
+      // Collision detection.
+      Rectangle birdRect {
+        birdX + 10,
+        birdY + 8,
+        bird.width - 20,
+        bird.height - 16
+      };
+      Rectangle topPipeRect {
+        pipeX,
+        0,
+        (float)pipe.width,
+        pipeGapY
+      };
+      Rectangle bottomPipeRect {
+        pipeX,
+        pipeGapY + PIPE_GAP,
+        (float)pipe.width,
+        (float)screenHeight - (pipeGapY + PIPE_GAP)
+      };
+
+      if (CheckCollisionRecs(birdRect, topPipeRect) ||
+          CheckCollisionRecs(birdRect, bottomPipeRect) ||
+          birdY <= 0 ||
+          birdY + bird.height >= screenHeight) {
+        phase = GAME_OVER;
+        bestScore = (score > bestScore) ? score : bestScore;
+      }
+    }
+
+    if (phase != PLAYING && hasFlapped) {
+      // Start or restart the game from the menu/game-over screen.
+      resetGame();
+      phase = PLAYING;
+    }
+
+    BeginDrawing();
+    ClearBackground(RAYWHITE);
+
+    DrawTexturePro(bg_img,
+      (Rectangle){0, 0, (float)bg_img.width, (float)bg_img.height},
+      (Rectangle){0, 0, (float)screenWidth, (float)screenHeight},
+      (Vector2){0, 0},
+      0.0f,
+      WHITE);
+
+    // Draw bottom pipe.
+    DrawTexturePro(pipe,
+      (Rectangle){0, 0, (float)pipe.width, (float)pipe.height},
+      (Rectangle){pipeX, pipeGapY + PIPE_GAP, (float)pipe.width, (float)pipe.height},
+      (Vector2){0, 0},
+      0.0f,
+      WHITE);
+
+    // Draw top pipe flipped vertically.
+    DrawTexturePro(pipe,
+      (Rectangle){0, 0, (float)pipe.width, -(float)pipe.height},
+      (Rectangle){pipeX, pipeGapY - pipe.height, (float)pipe.width, (float)pipe.height},
+      (Vector2){0, 0},
+      0.0f,
+      WHITE);
+
+    float birdRotation = velocity * 3.0f;
+    if (birdRotation > 45.0f) birdRotation = 45.0f;
+    if (birdRotation < -45.0f) birdRotation = -45.0f;
+
+    DrawTexturePro(bird,
+      (Rectangle){0, 0, (float)bird.width, (float)bird.height},
+      (Rectangle){birdX, birdY, (float)bird.width, (float)bird.height},
+      (Vector2){bird.width * 0.5f, bird.height * 0.5f},
+      birdRotation,
+      WHITE);
+
+    if (phase == MENU) {
+      // Title and play button in the main menu.
+      DrawTexturePro(title,
+        (Rectangle){0, 0, (float)title.width, (float)title.height},
+        (Rectangle){(screenWidth / 2.0f) - (title.width / 2.0f), 20.0f, (float)title.width, (float)title.height},
+        (Vector2){0, 0},
         0.0f,
-        WHITE
-      );
+        WHITE);
 
-      DrawTexturePro(pipe,
-        (Rectangle) {0, 0, (float)pipe.width, (float)pipe.height},
-        (Rectangle) {pipe_X + pipe.width, (float)(GetScreenHeight()) - (pipe.height + 150), (float)pipe.width, (float)pipe.height},
-        (Vector2) {0, 0},
-        180.0f,
-        WHITE
-      );
+      float btnX = (screenWidth / 2.0f) - (play_btn.width / 2.0f);
+      float btnY = screenHeight - (play_btn.height * 2.0f);
+      Rectangle btnBounds {btnX, btnY, (float)play_btn.width, (float)play_btn.height};
+      bool hover = CheckCollisionPointRec(GetMousePosition(), btnBounds);
+
+      DrawTexturePro(play_btn,
+        (Rectangle){0, 0, (float)play_btn.width, (float)play_btn.height},
+        (Rectangle){btnX, btnY, (float)play_btn.width, (float)play_btn.height},
+        (Vector2){0, 0},
+        0.0f,
+        hover ? GREEN : WHITE);
+
+      DrawText("Press SPACE or click to start", 10, screenHeight - 40, 18, BLACK);
+    }
+    else if (phase == PLAYING) {
+      DrawText(TextFormat("Score: %i", score), 10, 10, 24, BLACK);
+      DrawText("Press SPACE or click to flap", 10, screenHeight - 30, 18, DARKGRAY);
+    }
+    else { // GAME_OVER
+      DrawText("Game Over", screenWidth / 2 - 120, screenHeight / 2 - 80, 40, RED);
+      DrawText(TextFormat("Score: %i", score), screenWidth / 2 - 80, screenHeight / 2 - 20, 24, BLACK);
+      DrawText(TextFormat("Best: %i", bestScore), screenWidth / 2 - 80, screenHeight / 2 + 20, 24, BLACK);
+      DrawText("Press SPACE or click to restart", screenWidth / 2 - 190, screenHeight / 2 + 70, 20, DARKGRAY);
     }
 
     EndDrawing();
